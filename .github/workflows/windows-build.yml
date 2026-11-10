@@ -1,0 +1,28 @@
+name: Build MonarchTone Windows VST3
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+jobs:
+  build:
+    runs-on: windows-2022
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v4
+      - name: Configure JUCE project
+        run: cmake -S . -B build -G "Visual Studio 17 2022" -A x64
+      - name: Build VST3
+        run: cmake --build build --config Release --target MonarchTone_VST3
+      - name: Package VST3
+        shell: pwsh
+        run: |
+          $plugin = Get-ChildItem -Path build -Directory -Recurse -Filter 'MonarchTone.vst3' | Where-Object { $_.FullName -match 'Release' } | Select-Object -First 1
+          if (-not $plugin) { throw 'MonarchTone.vst3 not found after build' }
+          New-Item -ItemType Directory -Path package -Force | Out-Null
+          Copy-Item -Path $plugin.FullName -Destination 'package/MonarchTone.vst3' -Recurse -Force
+      - name: Upload Windows VST3
+        uses: actions/upload-artifact@v4
+        with:
+          name: MonarchTone-Windows-VST3
+          path: package/
+          if-no-files-found: error
